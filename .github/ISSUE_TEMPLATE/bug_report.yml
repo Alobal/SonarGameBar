@@ -1,0 +1,52 @@
+name: Bug report
+description: Report a reproducible SonarGameBar problem
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting, remove usernames, computer names, absolute paths, certificates, and unrelated process information from logs.
+  - type: input
+    id: gg-version
+    attributes:
+      label: SteelSeries GG version
+    validations:
+      required: true
+  - type: dropdown
+    id: sonar-mode
+    attributes:
+      label: Sonar mode
+      options:
+        - Classic
+        - Streamer
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized-logs
+    attributes:
+      label: Sanitized logs
+      description: Do not attach raw artifacts, certificates, package files, or Windows event-log exports.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed private machine and user information.
+          required: true

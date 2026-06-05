@@ -1,0 +1,185 @@
+<Page
+    x:Class="SonarGameBar.Widget.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{StaticResource AppBackgroundBrush}"
+    Loaded="Page_Loaded"
+    Unloaded="Page_Unloaded">
+
+    <Grid Padding="16,12,16,14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock
+                Text="SONAR MIXER"
+                FontSize="14"
+                FontWeight="SemiBold"
+                Foreground="{StaticResource PrimaryTextBrush}"
+                CharacterSpacing="80"
+                VerticalAlignment="Center" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse x:Name="ConnectionDot" Width="7" Height="7" Fill="#FFC857" />
+                <TextBlock
+                    x:Name="ConnectionStatusText"
+                    Text="连接中"
+                    FontSize="12"
+                    Foreground="{StaticResource SecondaryTextBrush}"
+                    VerticalAlignment="Center" />
+            </StackPanel>
+
+            <Button
+                Grid.Column="2"
+                x:Name="RefreshButton"
+                Style="{StaticResource IconButtonStyle}"
+                Click="RefreshButton_Click"
+                ToolTipService.ToolTip="重新连接"
+                AutomationProperties.Name="重新连接">
+                <FontIcon Glyph="&#xE72C;" FontSize="14" />
+            </Button>
+        </Grid>
+
+        <Border
+            Grid.Row="1"
+            x:Name="NoticePanel"
+            Visibility="Collapsed"
+            Margin="0,0,0,8"
+            Padding="8,6"
+            Background="#332A2214">
+            <TextBlock
+                x:Name="NoticeText"
+                TextWrapping="Wrap"
+                FontSize="11"
+                Foreground="#FFD581" />
+        </Border>
+
+        <StackPanel Grid.Row="2">
+            <Border BorderBrush="{StaticResource PanelLineBrush}" BorderThickness="0,0,0,1" Padding="0,4,0,7">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="总音量" Style="{StaticResource ChannelLabelStyle}" />
+                    <Slider
+                        Grid.Column="1"
+                        x:Name="MasterSlider"
+                        Tag="master"
+                        Minimum="0"
+                        Maximum="100"
+                        StepFrequency="1"
+                        Foreground="{StaticResource SonarAccentBrush}"
+                        ValueChanged="ChannelSlider_ValueChanged"
+                        AutomationProperties.Name="总音量" />
+                    <TextBlock Grid.Column="2" x:Name="MasterValueText" Text="--%" Style="{StaticResource ValueLabelStyle}" />
+                    <Button Grid.Column="3" x:Name="MasterMuteButton" Tag="master" Style="{StaticResource IconButtonStyle}" Click="MuteButton_Click" ToolTipService.ToolTip="静音总音量" AutomationProperties.Name="静音总音量">
+                        <FontIcon Glyph="&#xE767;" FontSize="15" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border BorderBrush="{StaticResource PanelLineBrush}" BorderThickness="0,0,0,1" Padding="0,7">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="游戏" Style="{StaticResource ChannelLabelStyle}" />
+                    <Slider
+                        Grid.Column="1"
+                        x:Name="GameSlider"
+                        Tag="game"
+                        Minimum="0"
+                        Maximum="100"
+                        StepFrequency="1"
+                        Foreground="{StaticResource SonarAccentBrush}"
+                        ValueChanged="ChannelSlider_ValueChanged"
+                        AutomationProperties.Name="游戏音量" />
+                    <TextBlock Grid.Column="2" x:Name="GameValueText" Text="--%" Style="{StaticResource ValueLabelStyle}" />
+                    <Button Grid.Column="3" x:Name="GameMuteButton" Tag="game" Style="{StaticResource IconButtonStyle}" Click="MuteButton_Click" ToolTipService.ToolTip="静音游戏" AutomationProperties.Name="静音游戏">
+                        <FontIcon Glyph="&#xE767;" FontSize="15" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border BorderBrush="{StaticResource PanelLineBrush}" BorderThickness="0,0,0,1" Padding="0,7">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="聊天" Style="{StaticResource ChannelLabelStyle}" />
+                    <Slider
+                        Grid.Column="1"
+                        x:Name="ChatSlider"
+                        Tag="chatRender"
+                        Minimum="0"
+                        Maximum="100"
+                        StepFrequency="1"
+                        Foreground="{StaticResource SonarAccentBrush}"
+                        ValueChanged="ChannelSlider_ValueChanged"
+                        AutomationProperties.Name="聊天音量" />
+                    <TextBlock Grid.Column="2" x:Name="ChatValueText" Text="--%" Style="{StaticResource ValueLabelStyle}" />
+                    <Button Grid.Column="3" x:Name="ChatMuteButton" Tag="chatRender" Style="{StaticResource IconButtonStyle}" Click="MuteButton_Click" ToolTipService.ToolTip="静音聊天" AutomationProperties.Name="静音聊天">
+                        <FontIcon Glyph="&#xE767;" FontSize="15" />
+                    </Button>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="CHATMIX" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" CharacterSpacing="70" />
+                <TextBlock Grid.Column="1" x:Name="ChatMixValueText" Text="居中" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" />
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,3,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="34" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="34" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="游戏" Style="{StaticResource ValueLabelStyle}" HorizontalAlignment="Left" />
+                <Slider
+                    Grid.Column="1"
+                    x:Name="ChatMixSlider"
+                    Minimum="-100"
+                    Maximum="100"
+                    StepFrequency="1"
+                    Foreground="#FFC857"
+                    ValueChanged="ChatMixSlider_ValueChanged"
+                    AutomationProperties.Name="游戏聊天平衡" />
+                <TextBlock Grid.Column="2" Text="聊天" Style="{StaticResource ValueLabelStyle}" HorizontalAlignment="Right" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

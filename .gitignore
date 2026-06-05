@@ -1,0 +1,41 @@
+# Visual Studio and local IDE state
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local AI/tool state
+.agents/
+.codex/
+
+# Build output
+**/bin/
+**/obj/
+**/AppPackages/
+**/BundleArtifacts/
+**/TestResults/
+artifacts/
+
+# Packages, symbols, certificates, and logs
+*.appx
+*.appxbundle
+*.appxsym
+*.cer
+*.key
+*.log
+*.msix
+*.msixbundle
+*.p12
+*.pdb
+*.pem
+*.pfx
+*.snk
+
+# Local publishing and NuGet state
+*.pubxml.user
+packages/
+
+# Operating-system files
+Desktop.ini
+Thumbs.db

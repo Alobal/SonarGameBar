@@ -1,0 +1,19 @@
+name: Public release audit
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  privacy-audit:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Scan for private data and generated artifacts
+        shell: pwsh
+        run: .\tools\Test-PublicRelease.ps1
