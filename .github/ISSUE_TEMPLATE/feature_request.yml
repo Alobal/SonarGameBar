@@ -1,23 +1,23 @@
-name: Feature request
-description: Suggest an improvement
-title: "[Feature] "
+name: 功能建议
+description: 建议改进 SonarGameBar
+title: "[功能] "
 labels:
   - enhancement
 body:
   - type: textarea
     id: use-case
     attributes:
-      label: Use case
-      description: What workflow would this improve?
+      label: 使用场景
+      description: 这个建议会改善什么工作流？
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed behavior
+      label: 期望行为
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
+      label: 已考虑的替代方案

@@ -6,8 +6,17 @@
     <Application.Resources>
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#171A1F" />
         <SolidColorBrush x:Key="PanelLineBrush" Color="#30353D" />
+        <SolidColorBrush x:Key="ButtonSurfaceBrush" Color="#334250" />
+        <SolidColorBrush x:Key="ButtonHoverSurfaceBrush" Color="#405366" />
+        <SolidColorBrush x:Key="ButtonPressedSurfaceBrush" Color="#22313C" />
+        <SolidColorBrush x:Key="ButtonDisabledSurfaceBrush" Color="#242A31" />
+        <SolidColorBrush x:Key="ButtonLineBrush" Color="#89A1B8" />
+        <SolidColorBrush x:Key="ButtonHoverLineBrush" Color="#35D6C7" />
+        <SolidColorBrush x:Key="ButtonPressedLineBrush" Color="#FFC857" />
+        <SolidColorBrush x:Key="ButtonDisabledLineBrush" Color="#3A414B" />
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F4F7FA" />
         <SolidColorBrush x:Key="SecondaryTextBrush" Color="#AAB2BD" />
+        <SolidColorBrush x:Key="DisabledTextBrush" Color="#77828E" />
         <SolidColorBrush x:Key="SonarAccentBrush" Color="#35D6C7" />
         <SolidColorBrush x:Key="MutedBrush" Color="#FF6B72" />
 
@@ -24,15 +33,92 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="IconButtonStyle" TargetType="Button">
+        <Style x:Key="SonarButtonBaseStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource ButtonLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonFrame" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource ButtonHoverSurfaceBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonFrame" Storyboard.TargetProperty="BorderBrush">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource ButtonHoverLineBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonFrame" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource ButtonPressedSurfaceBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonFrame" Storyboard.TargetProperty="BorderBrush">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource ButtonPressedLineBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonFrame" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource ButtonDisabledSurfaceBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonFrame" Storyboard.TargetProperty="BorderBrush">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource ButtonDisabledLineBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonContent" Storyboard.TargetProperty="Foreground">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource DisabledTextBrush}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <Border
+                                x:Name="ButtonFrame"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                                <ContentPresenter
+                                    x:Name="ButtonContent"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    Padding="{TemplateBinding Padding}"
+                                    HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="IconButtonStyle" TargetType="Button" BasedOn="{StaticResource SonarButtonBaseStyle}">
             <Setter Property="Width" Value="36" />
             <Setter Property="Height" Value="36" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
-            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="QuickButtonStyle" TargetType="Button" BasedOn="{StaticResource SonarButtonBaseStyle}">
+            <Setter Property="MinWidth" Value="48" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="FontSize" Value="12" />
         </Style>
     </Application.Resources>
 </Application>

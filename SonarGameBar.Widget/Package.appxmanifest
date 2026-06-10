@@ -11,7 +11,7 @@
   <Identity
     Name="SonarGameBar.Widget"
     Publisher="CN=SonarGameBar"
-    Version="0.1.0.0" />
+    Version="2.0.3.0" />
 
   <mp:PhoneIdentity PhoneProductId="ed6d5b68-a658-471e-9095-60413d77b298" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 

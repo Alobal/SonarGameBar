@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Net;
 using System.Text.Json;
 
 namespace SonarGameBar.Core;
@@ -25,7 +24,7 @@ public sealed class SonarClient : IDisposable
         var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = (request, _, _, _) =>
-                request.RequestUri is not null && IsLoopbackUri(request.RequestUri),
+                request.RequestUri is not null && SonarEndpoint.IsLoopbackUri(request.RequestUri),
         };
 
         _httpClient = new HttpClient(handler)
@@ -44,7 +43,7 @@ public sealed class SonarClient : IDisposable
 
             await Task.WhenAll(volumesTask, chatMixTask, modeTask);
 
-            return ParseState(
+            return SonarStateParser.ParseState(
                 await volumesTask,
                 await chatMixTask,
                 await modeTask);
@@ -56,15 +55,13 @@ public sealed class SonarClient : IDisposable
         double volume,
         CancellationToken cancellationToken = default)
     {
-        ValidateChannel(channel);
-
         if (volume is < 0 or > 1)
         {
             throw new ArgumentOutOfRangeException(nameof(volume), "Volume must be between 0 and 1.");
         }
 
         var formattedVolume = volume.ToString("0.####", CultureInfo.InvariantCulture);
-        return PutAsync($"volumeSettings/{DefaultMode}/{channel}/Volume/{formattedVolume}", cancellationToken);
+        return PutChannelAsync(channel, $"Volume/{formattedVolume}", cancellationToken);
     }
 
     public Task SetMuteAsync(
@@ -72,8 +69,7 @@ public sealed class SonarClient : IDisposable
         bool muted,
         CancellationToken cancellationToken = default)
     {
-        ValidateChannel(channel);
-        return PutAsync($"volumeSettings/{DefaultMode}/{channel}/Mute/{muted.ToString().ToLowerInvariant()}", cancellationToken);
+        return PutChannelAsync(channel, $"Mute/{muted.ToString().ToLowerInvariant()}", cancellationToken);
     }
 
     public Task SetChatMixAsync(double balance, CancellationToken cancellationToken = default)
@@ -91,6 +87,15 @@ public sealed class SonarClient : IDisposable
     {
         _httpClient.Dispose();
         _discoveryLock.Dispose();
+    }
+
+    private async Task PutChannelAsync(
+        string channel,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        await EnsureChannelControllableAsync(channel, cancellationToken);
+        await PutAsync($"volumeSettings/{DefaultMode}/{channel}/{operation}", cancellationToken);
     }
 
     private async Task PutAsync(string relativeUri, CancellationToken cancellationToken)
@@ -180,7 +185,7 @@ public sealed class SonarClient : IDisposable
             var corePropsJson = await File.ReadAllTextAsync(_corePropsPath, cancellationToken);
             using var coreProps = JsonDocument.Parse(corePropsJson);
             var ggAddress = coreProps.RootElement.GetProperty("ggEncryptedAddress").GetString();
-            var ggBaseUri = CreateLoopbackBaseUri(ggAddress, Uri.UriSchemeHttps);
+            var ggBaseUri = SonarEndpoint.CreateLoopbackBaseUri(ggAddress, Uri.UriSchemeHttps);
 
             var subAppsJson = await GetStringAsync(ggBaseUri, "subApps", cancellationToken);
             using var subApps = JsonDocument.Parse(subAppsJson);
@@ -191,7 +196,7 @@ public sealed class SonarClient : IDisposable
                 .GetProperty("webServerAddress")
                 .GetString();
 
-            return CreateLoopbackBaseUri(sonarAddress, Uri.UriSchemeHttp);
+            return SonarEndpoint.CreateLoopbackBaseUri(sonarAddress, Uri.UriSchemeHttp);
         }
         catch (SonarApiException)
         {
@@ -203,78 +208,25 @@ public sealed class SonarClient : IDisposable
         }
     }
 
-    private static MixerState ParseState(string volumesJson, string chatMixJson, string modeJson)
+    private async Task EnsureChannelControllableAsync(string channel, CancellationToken cancellationToken)
     {
-        try
+        if (!SonarChannels.IsSafeChannelId(channel))
         {
-            using var volumes = JsonDocument.Parse(volumesJson);
-            using var chatMix = JsonDocument.Parse(chatMixJson);
-
-            var root = volumes.RootElement;
-            return new MixerState
-            {
-                Mode = JsonSerializer.Deserialize<string>(modeJson) ?? DefaultMode,
-                Master = ParseChannel(root.GetProperty("masters")),
-                Game = ParseChannel(root.GetProperty("devices").GetProperty(SonarChannels.Game)),
-                Chat = ParseChannel(root.GetProperty("devices").GetProperty(SonarChannels.Chat)),
-                ChatMix = chatMix.RootElement.GetProperty("balance").GetDouble(),
-            };
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            throw new SonarApiException("SteelSeries Sonar returned an unexpected mixer response.", exception);
-        }
-    }
-
-    private static ChannelState ParseChannel(JsonElement channel)
-    {
-        var classic = channel.GetProperty(DefaultMode);
-        return new ChannelState
-        {
-            Volume = classic.GetProperty("volume").GetDouble(),
-            Muted = classic.GetProperty("muted").GetBoolean(),
-        };
-    }
-
-    private static Uri CreateLoopbackBaseUri(string? address, string defaultScheme)
-    {
-        if (string.IsNullOrWhiteSpace(address))
-        {
-            throw new SonarApiException("SteelSeries GG did not provide a Sonar server address.");
+            throw new ArgumentException($"Unsafe Sonar channel id '{channel}'.", nameof(channel));
         }
 
-        var candidate = address.Contains("://", StringComparison.Ordinal)
-            ? address
-            : $"{defaultScheme}://{address}";
+        var state = await GetStateAsync(cancellationToken);
+        var discovered = state.Channels.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, channel, StringComparison.Ordinal));
 
-        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri) ||
-            !IsLoopbackUri(uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        if (discovered is null)
         {
-            throw new SonarApiException("SteelSeries GG provided an unsafe Sonar server address.");
+            throw new ArgumentException($"Sonar channel '{channel}' is not available.", nameof(channel));
         }
 
-        return new UriBuilder(uri)
+        if (!discovered.Controllable)
         {
-            Path = uri.AbsolutePath.TrimEnd('/') + "/",
-        }.Uri;
-    }
-
-    private static bool IsLoopbackUri(Uri uri)
-    {
-        if (uri.IsLoopback)
-        {
-            return true;
-        }
-
-        return IPAddress.TryParse(uri.Host, out var address) && IPAddress.IsLoopback(address);
-    }
-
-    private static void ValidateChannel(string channel)
-    {
-        if (!SonarChannels.IsSupported(channel))
-        {
-            throw new ArgumentException($"Unsupported Sonar channel '{channel}'.", nameof(channel));
+            throw new SonarApiException($"Sonar channel '{channel}' cannot be controlled in mode '{state.Mode}'.");
         }
     }
 }

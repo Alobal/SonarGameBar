@@ -1,14 +1,14 @@
-## Summary
+## 摘要
 
-Describe the behavior change and why it is needed.
+说明这次行为变更，以及为什么需要它。
 
-## Verification
+## 验证
 
-- [ ] Built the project
-- [ ] Tested through Xbox Game Bar
-- [ ] Ran `tools\Test-PublicRelease.ps1`
-- [ ] Confirmed no private data or generated artifacts are included
+- [ ] 已构建项目
+- [ ] 已通过 Xbox Game Bar 测试
+- [ ] 已运行 `tools\Test-PublicRelease.ps1`
+- [ ] 已确认没有包含隐私数据或生成物
 
-## Notes
+## 备注
 
-List Sonar/GG compatibility considerations, known limitations, or screenshots when relevant.
+如有需要，列出 Sonar/GG 兼容性注意事项、已知限制或截图。

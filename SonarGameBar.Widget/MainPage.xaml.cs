@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Data.Json;
 using Windows.Foundation.Collections;
 using Windows.UI;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Automation;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Shapes;
 
 namespace SonarGameBar.Widget
 {
@@ -19,12 +23,16 @@ namespace SonarGameBar.Widget
             new Dictionary<string, CancellationTokenSource>();
         private readonly Dictionary<string, DateTimeOffset> _localOverrideUntil =
             new Dictionary<string, DateTimeOffset>();
+        private readonly Dictionary<string, ChannelControls> _channelControls =
+            new Dictionary<string, ChannelControls>();
+        private readonly Dictionary<string, bool> _mutedByChannel =
+            new Dictionary<string, bool>();
+        private readonly List<string> _renderedChannelOrder = new List<string>();
 
         private bool _applyingState;
         private bool _refreshing;
-        private bool _masterMuted;
-        private bool _gameMuted;
-        private bool _chatMuted;
+        private string _lastNoticeMessage;
+        private DateTimeOffset _lastNoticeAt;
 
         public MainPage()
         {
@@ -60,6 +68,19 @@ namespace SonarGameBar.Widget
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             await RefreshStateAsync();
+        }
+
+        private void ChatMixQuickButton_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button == null || button.Tag == null)
+            {
+                return;
+            }
+
+            var value = Convert.ToDouble(button.Tag, CultureInfo.InvariantCulture);
+            ChatMixSlider.Value = value;
+            QueueChatMixChange(value);
         }
 
         private async Task RefreshStateAsync()
@@ -100,31 +121,16 @@ namespace SonarGameBar.Widget
             _applyingState = true;
             try
             {
-                if (!IsPollingSuppressed("master"))
-                {
-                    _masterMuted = ApplyChannel(
-                        state.GetNamedObject("master"),
-                        MasterSlider,
-                        MasterValueText,
-                        MasterMuteButton);
-                }
+                var channels = ReadChannels(state);
+                RenderChannelRows(channels);
+                ApplyBatteries(ReadBatteries(state));
 
-                if (!IsPollingSuppressed("game"))
+                foreach (var channel in channels)
                 {
-                    _gameMuted = ApplyChannel(
-                        state.GetNamedObject("game"),
-                        GameSlider,
-                        GameValueText,
-                        GameMuteButton);
-                }
-
-                if (!IsPollingSuppressed("chatRender"))
-                {
-                    _chatMuted = ApplyChannel(
-                        state.GetNamedObject("chat"),
-                        ChatSlider,
-                        ChatValueText,
-                        ChatMuteButton);
+                    if (!IsPollingSuppressed(channel.Id))
+                    {
+                        ApplyChannel(channel);
+                    }
                 }
 
                 var chatMix = Math.Round(state.GetNamedNumber("chatMix") * 100);
@@ -137,7 +143,7 @@ namespace SonarGameBar.Widget
                 var mode = state.GetNamedString("mode", "classic");
                 if (mode != "classic")
                 {
-                    ShowNotice("当前是主播模式，第一版仅控制经典模式。");
+                    ShowNotice("当前是 " + mode + " 模式，当前版本仅写入 classic 模式。");
                 }
                 else
                 {
@@ -150,18 +156,240 @@ namespace SonarGameBar.Widget
             }
         }
 
-        private static bool ApplyChannel(
-            JsonObject channel,
-            Slider slider,
-            TextBlock valueText,
-            Button muteButton)
+        private static List<ChannelView> ReadChannels(JsonObject state)
         {
-            var value = Math.Round(channel.GetNamedNumber("volume") * 100);
-            var muted = channel.GetNamedBoolean("muted");
-            slider.Value = value;
-            valueText.Text = value + "%";
-            SetMuteVisual(muteButton, muted);
-            return muted;
+            var channels = new List<ChannelView>();
+            if (!state.ContainsKey("channels"))
+            {
+                return channels;
+            }
+
+            foreach (var value in state.GetNamedArray("channels"))
+            {
+                var channel = value.GetObject();
+                var id = channel.GetNamedString("id", string.Empty);
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    continue;
+                }
+
+                var active = channel.GetNamedBoolean("active", false);
+                if (!IsAlwaysVisibleChannel(id) && !active)
+                {
+                    continue;
+                }
+
+                channels.Add(new ChannelView
+                {
+                    Id = id,
+                    DisplayName = channel.GetNamedString("displayName", id),
+                    Volume = Math.Round(channel.GetNamedNumber("volume", 0) * 100),
+                    Muted = channel.GetNamedBoolean("muted", false),
+                    Controllable = channel.GetNamedBoolean("controllable", true),
+                    Active = active,
+                    SortOrder = (int)channel.GetNamedNumber("sortOrder", 1000),
+                });
+            }
+
+            channels.Sort((left, right) =>
+            {
+                var order = left.SortOrder.CompareTo(right.SortOrder);
+                return order != 0
+                    ? order
+                    : string.Compare(left.DisplayName, right.DisplayName, StringComparison.CurrentCulture);
+            });
+
+            return channels;
+        }
+
+        private void RenderChannelRows(IList<ChannelView> channels)
+        {
+            var desiredOrder = channels.Select(channel => channel.Id).ToList();
+            foreach (var entry in _channelControls)
+            {
+                if (!desiredOrder.Contains(entry.Key))
+                {
+                    entry.Value.Container.Visibility = Visibility.Collapsed;
+                }
+            }
+
+            foreach (var channel in channels)
+            {
+                EnsureChannelControls(channel).Container.Visibility = Visibility.Visible;
+            }
+
+            if (_renderedChannelOrder.SequenceEqual(desiredOrder))
+            {
+                return;
+            }
+
+            ChannelRowsPanel.Children.Clear();
+            foreach (var channel in channels)
+            {
+                ChannelRowsPanel.Children.Add(_channelControls[channel.Id].Container);
+            }
+
+            _renderedChannelOrder.Clear();
+            _renderedChannelOrder.AddRange(desiredOrder);
+        }
+
+        private static List<BatteryView> ReadBatteries(JsonObject state)
+        {
+            var batteries = new List<BatteryView>();
+            if (!state.ContainsKey("batteries"))
+            {
+                return batteries;
+            }
+
+            foreach (var value in state.GetNamedArray("batteries"))
+            {
+                var battery = value.GetObject();
+                int? percentage = null;
+                if (battery.ContainsKey("percentage") &&
+                    battery.GetNamedValue("percentage").ValueType == JsonValueType.Number)
+                {
+                    percentage = (int)Math.Round(battery.GetNamedNumber("percentage"));
+                }
+
+                batteries.Add(new BatteryView
+                {
+                    DeviceName = battery.GetNamedString("deviceName", "设备"),
+                    Percentage = percentage,
+                    Charging = battery.ContainsKey("charging") &&
+                        battery.GetNamedValue("charging").ValueType == JsonValueType.Boolean
+                            ? battery.GetNamedBoolean("charging")
+                            : (bool?)null,
+                });
+            }
+
+            return batteries;
+        }
+
+        private void ApplyBatteries(IList<BatteryView> batteries)
+        {
+            var battery = batteries.FirstOrDefault(candidate => candidate.Percentage.HasValue);
+            if (battery == null)
+            {
+                BatteryPanel.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            BatteryPanel.Visibility = Visibility.Visible;
+            BatteryText.Text = battery.Percentage.Value + "%" + (battery.Charging == true ? " 充电" : string.Empty);
+            ToolTipService.SetToolTip(BatteryPanel, battery.DeviceName + " 电量");
+        }
+
+        private ChannelControls EnsureChannelControls(ChannelView channel)
+        {
+            ChannelControls controls;
+            if (_channelControls.TryGetValue(channel.Id, out controls))
+            {
+                controls.Label.Text = channel.DisplayName;
+                controls.Slider.IsEnabled = channel.Controllable;
+                controls.MuteButton.IsEnabled = channel.Controllable;
+                return controls;
+            }
+
+            var border = new Border
+            {
+                BorderBrush = (Brush)Application.Current.Resources["PanelLineBrush"],
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(0, 7, 0, 7),
+            };
+
+            var grid = new Grid();
+            var activeColumn = new ColumnDefinition { Width = new GridLength(12) };
+            grid.ColumnDefinitions.Add(activeColumn);
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+
+            var activeDot = new Ellipse
+            {
+                Width = 7,
+                Height = 7,
+                Fill = new SolidColorBrush(Colors.Transparent),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            ToolTipService.SetToolTip(activeDot, "正在出声");
+
+            var label = new TextBlock
+            {
+                Text = channel.DisplayName,
+                Style = (Style)Application.Current.Resources["ChannelLabelStyle"],
+            };
+
+            var slider = new Slider
+            {
+                Tag = channel.Id,
+                Minimum = 0,
+                Maximum = 100,
+                StepFrequency = 1,
+                Foreground = (Brush)Application.Current.Resources["SonarAccentBrush"],
+                IsEnabled = channel.Controllable,
+            };
+            slider.ValueChanged += ChannelSlider_ValueChanged;
+            AutomationProperties.SetName(slider, channel.DisplayName + "音量");
+
+            var valueText = new TextBlock
+            {
+                Text = "--%",
+                Style = (Style)Application.Current.Resources["ValueLabelStyle"],
+            };
+
+            var muteButton = new Button
+            {
+                Tag = channel.Id,
+                Style = (Style)Application.Current.Resources["IconButtonStyle"],
+                IsEnabled = channel.Controllable,
+            };
+            muteButton.Click += MuteButton_Click;
+            ToolTipService.SetToolTip(muteButton, "静音" + channel.DisplayName);
+            AutomationProperties.SetName(muteButton, "静音" + channel.DisplayName);
+
+            Grid.SetColumn(activeDot, 0);
+            Grid.SetColumn(label, 1);
+            Grid.SetColumn(slider, 2);
+            Grid.SetColumn(valueText, 3);
+            Grid.SetColumn(muteButton, 4);
+
+            grid.Children.Add(activeDot);
+            grid.Children.Add(label);
+            grid.Children.Add(slider);
+            grid.Children.Add(valueText);
+            grid.Children.Add(muteButton);
+            border.Child = grid;
+
+            controls = new ChannelControls
+            {
+                Container = border,
+                Label = label,
+                Slider = slider,
+                ValueText = valueText,
+                MuteButton = muteButton,
+                ActiveDot = activeDot,
+            };
+
+            _channelControls[channel.Id] = controls;
+            return controls;
+        }
+
+        private void ApplyChannel(ChannelView channel)
+        {
+            ChannelControls controls;
+            if (!_channelControls.TryGetValue(channel.Id, out controls))
+            {
+                return;
+            }
+
+            _mutedByChannel[channel.Id] = channel.Muted;
+            controls.Slider.Value = channel.Volume;
+            controls.ValueText.Text = channel.Volume + "%";
+            controls.Slider.IsEnabled = channel.Controllable;
+            controls.MuteButton.IsEnabled = channel.Controllable;
+            SetMuteVisual(controls.MuteButton, channel.Muted);
+            SetActiveVisual(controls.ActiveDot, channel.Active);
         }
 
         private void ChannelSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
@@ -195,14 +423,7 @@ namespace SonarGameBar.Widget
 
             if (!_applyingState)
             {
-                SuppressPolling("chatMix");
-                QueueChange(
-                    "chatMix",
-                    new ValueSet
-                    {
-                        ["action"] = "setChatMix",
-                        ["value"] = e.NewValue / 100,
-                    });
+                QueueChatMixChange(e.NewValue);
             }
         }
 
@@ -235,6 +456,18 @@ namespace SonarGameBar.Widget
                 ShowNotice(exception.Message);
                 await RefreshStateAsync();
             }
+        }
+
+        private void QueueChatMixChange(double value)
+        {
+            SuppressPolling("chatMix");
+            QueueChange(
+                "chatMix",
+                new ValueSet
+                {
+                    ["action"] = "setChatMix",
+                    ["value"] = value / 100,
+                });
         }
 
         private async void QueueChange(string key, ValueSet request)
@@ -274,50 +507,27 @@ namespace SonarGameBar.Widget
 
         private void UpdateValueLabel(string channel, double value)
         {
-            var text = Math.Round(value) + "%";
-            if (channel == "master")
+            if (channel == null)
             {
-                MasterValueText.Text = text;
+                return;
             }
-            else if (channel == "game")
+
+            ChannelControls controls;
+            if (_channelControls.TryGetValue(channel, out controls))
             {
-                GameValueText.Text = text;
-            }
-            else if (channel == "chatRender")
-            {
-                ChatValueText.Text = text;
+                controls.ValueText.Text = Math.Round(value) + "%";
             }
         }
 
         private bool GetMuted(string channel)
         {
-            if (channel == "master")
-            {
-                return _masterMuted;
-            }
-
-            if (channel == "game")
-            {
-                return _gameMuted;
-            }
-
-            return _chatMuted;
+            bool muted;
+            return _mutedByChannel.TryGetValue(channel, out muted) && muted;
         }
 
         private void SetMuted(string channel, bool muted)
         {
-            if (channel == "master")
-            {
-                _masterMuted = muted;
-            }
-            else if (channel == "game")
-            {
-                _gameMuted = muted;
-            }
-            else
-            {
-                _chatMuted = muted;
-            }
+            _mutedByChannel[channel] = muted;
         }
 
         private static void SetMuteVisual(Button button, bool muted)
@@ -329,7 +539,14 @@ namespace SonarGameBar.Widget
             };
             button.Foreground = new SolidColorBrush(muted
                 ? Color.FromArgb(255, 255, 107, 114)
-                : Color.FromArgb(255, 170, 178, 189));
+                : Color.FromArgb(255, 244, 247, 250));
+        }
+
+        private static void SetActiveVisual(Ellipse dot, bool active)
+        {
+            dot.Fill = new SolidColorBrush(active
+                ? Color.FromArgb(255, 53, 214, 199)
+                : Colors.Transparent);
         }
 
         private static string FormatChatMix(double value)
@@ -345,6 +562,11 @@ namespace SonarGameBar.Widget
                 : "聊天 " + rounded + "%";
         }
 
+        private static bool IsAlwaysVisibleChannel(string id)
+        {
+            return id == "master" || id == "game" || id == "chatRender";
+        }
+
         private void SetConnected(bool connected, string text)
         {
             ConnectionStatusText.Text = text;
@@ -355,6 +577,14 @@ namespace SonarGameBar.Widget
 
         private void ShowNotice(string message)
         {
+            var now = DateTimeOffset.UtcNow;
+            if (message == _lastNoticeMessage && now - _lastNoticeAt < TimeSpan.FromSeconds(2))
+            {
+                return;
+            }
+
+            _lastNoticeMessage = message;
+            _lastNoticeAt = now;
             NoticeText.Text = message;
             NoticePanel.Visibility = Visibility.Visible;
         }
@@ -384,6 +614,47 @@ namespace SonarGameBar.Widget
 
             _localOverrideUntil.Remove(key);
             return false;
+        }
+
+        private sealed class ChannelView
+        {
+            public string Id { get; set; }
+
+            public string DisplayName { get; set; }
+
+            public double Volume { get; set; }
+
+            public bool Muted { get; set; }
+
+            public bool Controllable { get; set; }
+
+            public bool Active { get; set; }
+
+            public int SortOrder { get; set; }
+        }
+
+        private sealed class BatteryView
+        {
+            public string DeviceName { get; set; }
+
+            public int? Percentage { get; set; }
+
+            public bool? Charging { get; set; }
+        }
+
+        private sealed class ChannelControls
+        {
+            public Border Container { get; set; }
+
+            public TextBlock Label { get; set; }
+
+            public Slider Slider { get; set; }
+
+            public TextBlock ValueText { get; set; }
+
+            public Button MuteButton { get; set; }
+
+            public Ellipse ActiveDot { get; set; }
         }
     }
 }

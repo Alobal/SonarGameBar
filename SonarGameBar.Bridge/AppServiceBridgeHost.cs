@@ -15,6 +15,7 @@ internal sealed class AppServiceBridgeHost : IDisposable
     };
 
     private readonly SonarClient _sonar = new();
+    private readonly DeviceBatteryProvider _batteryProvider = new();
     private readonly TaskCompletionSource _serviceClosed =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -54,6 +55,7 @@ internal sealed class AppServiceBridgeHost : IDisposable
         }
 
         _sonar.Dispose();
+        _batteryProvider.Dispose();
     }
 
     private async void OnRequestReceived(
@@ -90,7 +92,8 @@ internal sealed class AppServiceBridgeHost : IDisposable
             switch (action)
             {
                 case BridgeProtocol.GetState:
-                    var state = await _sonar.GetStateAsync();
+                    var state = AudioActivityDetector.ApplyToState(await _sonar.GetStateAsync());
+                    state = state.WithBatteries(await _batteryProvider.GetBatteriesAsync());
                     return Success(JsonSerializer.Serialize(state, JsonOptions));
 
                 case BridgeProtocol.SetVolume:

@@ -37,7 +37,12 @@ internal static class BridgeProgram
             switch (args[0].ToLowerInvariant())
             {
                 case "status":
-                    Console.WriteLine(JsonSerializer.Serialize(await sonar.GetStateAsync(), JsonOptions));
+                    using (var batteryProvider = new DeviceBatteryProvider())
+                    {
+                        var state = AudioActivityDetector.ApplyToState(await sonar.GetStateAsync());
+                        state = state.WithBatteries(await batteryProvider.GetBatteriesAsync());
+                        Console.WriteLine(JsonSerializer.Serialize(state, JsonOptions));
+                    }
                     break;
 
                 case "set-volume" when args.Length == 3:
@@ -86,8 +91,8 @@ internal static class BridgeProgram
 
               status
               appservice
-              set-volume <master|game|chatRender> <0..1>
-              set-mute <master|game|chatRender> <true|false>
+              set-volume <channel> <0..1>
+              set-mute <channel> <true|false>
               set-chatmix <-1..1>
             """);
     }

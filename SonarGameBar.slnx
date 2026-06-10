@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="SonarGameBar.Bridge/SonarGameBar.Bridge.csproj" />
   <Project Path="SonarGameBar.Core/SonarGameBar.Core.csproj" />
+  <Project Path="SonarGameBar.Core.Tests/SonarGameBar.Core.Tests.csproj" />
   <Project Path="SonarGameBar.Widget/SonarGameBar.Widget.csproj" />
 </Solution>

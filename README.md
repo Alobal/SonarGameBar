@@ -1,8 +1,8 @@
 # SonarGameBar
 
-[English](README.en.md) | 简体中文
+简体中文
 
-SonarGameBar 是一个 Xbox Game Bar 小组件，方便在Win+G里调节赛睿sonar的音量, 比如游戏和人声的混合比例。
+SonarGameBar 是一个 Xbox Game Bar 小组件，方便在 `Win+G` 里调节赛睿 Sonar 的音量，比如游戏和人声的混合比例。
 
 > [!IMPORTANT]
 > SteelSeries 没有提供公开的 Sonar 控制 API。本项目调用 GG 在本机暴露的非公开接口，GG 更新后可能需要适配。
@@ -10,8 +10,11 @@ SonarGameBar 是一个 Xbox Game Bar 小组件，方便在Win+G里调节赛睿so
 ## 功能
 
 - 调节总音量、游戏音量和聊天音量
+- 自动展示 Sonar 当前返回的 classic 模式通道，例如媒体、Aux 和麦克风
 - 分别静音总音量、游戏与聊天通道
 - 调节 Game/Chat ChatMix
+- 提供 ChatMix 快捷操作
+- 标记当前检测到音频活动的 Sonar 通道
 - 自动发现 Sonar 的动态本机地址
 - Sonar 或 GG 重启后自动重连
 - Widget 打开时按需启动 Bridge，关闭后 Bridge 自动退出

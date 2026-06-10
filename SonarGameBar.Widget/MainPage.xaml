@@ -22,6 +22,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <TextBlock
@@ -32,7 +33,24 @@
                 CharacterSpacing="80"
                 VerticalAlignment="Center" />
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <StackPanel
+                Grid.Column="1"
+                x:Name="BatteryPanel"
+                Orientation="Horizontal"
+                Spacing="5"
+                VerticalAlignment="Center"
+                Margin="0,0,8,0"
+                Visibility="Collapsed">
+                <FontIcon Glyph="&#xEBAA;" FontSize="13" Foreground="{StaticResource SonarAccentBrush}" />
+                <TextBlock
+                    x:Name="BatteryText"
+                    Text="--"
+                    FontSize="12"
+                    Foreground="{StaticResource PrimaryTextBrush}"
+                    VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                 <Ellipse x:Name="ConnectionDot" Width="7" Height="7" Fill="#FFC857" />
                 <TextBlock
                     x:Name="ConnectionStatusText"
@@ -43,7 +61,7 @@
             </StackPanel>
 
             <Button
-                Grid.Column="2"
+                Grid.Column="3"
                 x:Name="RefreshButton"
                 Style="{StaticResource IconButtonStyle}"
                 Click="RefreshButton_Click"
@@ -67,88 +85,16 @@
                 Foreground="#FFD581" />
         </Border>
 
-        <StackPanel Grid.Row="2">
-            <Border BorderBrush="{StaticResource PanelLineBrush}" BorderThickness="0,0,0,1" Padding="0,4,0,7">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="58" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="42" />
-                        <ColumnDefinition Width="36" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="总音量" Style="{StaticResource ChannelLabelStyle}" />
-                    <Slider
-                        Grid.Column="1"
-                        x:Name="MasterSlider"
-                        Tag="master"
-                        Minimum="0"
-                        Maximum="100"
-                        StepFrequency="1"
-                        Foreground="{StaticResource SonarAccentBrush}"
-                        ValueChanged="ChannelSlider_ValueChanged"
-                        AutomationProperties.Name="总音量" />
-                    <TextBlock Grid.Column="2" x:Name="MasterValueText" Text="--%" Style="{StaticResource ValueLabelStyle}" />
-                    <Button Grid.Column="3" x:Name="MasterMuteButton" Tag="master" Style="{StaticResource IconButtonStyle}" Click="MuteButton_Click" ToolTipService.ToolTip="静音总音量" AutomationProperties.Name="静音总音量">
-                        <FontIcon Glyph="&#xE767;" FontSize="15" />
-                    </Button>
-                </Grid>
-            </Border>
-
-            <Border BorderBrush="{StaticResource PanelLineBrush}" BorderThickness="0,0,0,1" Padding="0,7">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="58" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="42" />
-                        <ColumnDefinition Width="36" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="游戏" Style="{StaticResource ChannelLabelStyle}" />
-                    <Slider
-                        Grid.Column="1"
-                        x:Name="GameSlider"
-                        Tag="game"
-                        Minimum="0"
-                        Maximum="100"
-                        StepFrequency="1"
-                        Foreground="{StaticResource SonarAccentBrush}"
-                        ValueChanged="ChannelSlider_ValueChanged"
-                        AutomationProperties.Name="游戏音量" />
-                    <TextBlock Grid.Column="2" x:Name="GameValueText" Text="--%" Style="{StaticResource ValueLabelStyle}" />
-                    <Button Grid.Column="3" x:Name="GameMuteButton" Tag="game" Style="{StaticResource IconButtonStyle}" Click="MuteButton_Click" ToolTipService.ToolTip="静音游戏" AutomationProperties.Name="静音游戏">
-                        <FontIcon Glyph="&#xE767;" FontSize="15" />
-                    </Button>
-                </Grid>
-            </Border>
-
-            <Border BorderBrush="{StaticResource PanelLineBrush}" BorderThickness="0,0,0,1" Padding="0,7">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="58" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="42" />
-                        <ColumnDefinition Width="36" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="聊天" Style="{StaticResource ChannelLabelStyle}" />
-                    <Slider
-                        Grid.Column="1"
-                        x:Name="ChatSlider"
-                        Tag="chatRender"
-                        Minimum="0"
-                        Maximum="100"
-                        StepFrequency="1"
-                        Foreground="{StaticResource SonarAccentBrush}"
-                        ValueChanged="ChannelSlider_ValueChanged"
-                        AutomationProperties.Name="聊天音量" />
-                    <TextBlock Grid.Column="2" x:Name="ChatValueText" Text="--%" Style="{StaticResource ValueLabelStyle}" />
-                    <Button Grid.Column="3" x:Name="ChatMuteButton" Tag="chatRender" Style="{StaticResource IconButtonStyle}" Click="MuteButton_Click" ToolTipService.ToolTip="静音聊天" AutomationProperties.Name="静音聊天">
-                        <FontIcon Glyph="&#xE767;" FontSize="15" />
-                    </Button>
-                </Grid>
-            </Border>
-        </StackPanel>
+        <ScrollViewer
+            Grid.Row="2"
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="ChannelRowsPanel" />
+        </ScrollViewer>
 
         <Grid Grid.Row="3" Margin="0,12,0,0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -162,7 +108,18 @@
                 <TextBlock Grid.Column="1" x:Name="ChatMixValueText" Text="居中" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" />
             </Grid>
 
-            <Grid Grid.Row="1" Margin="0,3,0,0">
+            <StackPanel
+                Grid.Row="1"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="6"
+                Margin="0,5,0,0">
+                <Button Content="游戏" Tag="-70" Style="{StaticResource QuickButtonStyle}" Click="ChatMixQuickButton_Click" ToolTipService.ToolTip="ChatMix 偏向游戏" />
+                <Button Content="居中" Tag="0" Style="{StaticResource QuickButtonStyle}" Click="ChatMixQuickButton_Click" ToolTipService.ToolTip="ChatMix 居中" />
+                <Button Content="聊天" Tag="70" Style="{StaticResource QuickButtonStyle}" Click="ChatMixQuickButton_Click" ToolTipService.ToolTip="ChatMix 偏向聊天" />
+            </StackPanel>
+
+            <Grid Grid.Row="2" Margin="0,5,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="34" />
                     <ColumnDefinition Width="*" />
