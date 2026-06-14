@@ -3,7 +3,7 @@ param(
 )
 
 & (Join-Path $PSScriptRoot 'Build-Package.ps1') `
-    -Configuration Debug `
+    -Configuration Release `
     -OutputDirectory $OutputDirectory
 
 if ($LASTEXITCODE -ne 0) {

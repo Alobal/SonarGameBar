@@ -3,19 +3,29 @@ name: 构建、测试和公开发布审计
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  audit-build-test:
-    runs-on: windows-latest
+  audit-build-test-package:
+    name: Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 30
+
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: 安装 .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
@@ -23,14 +33,30 @@ jobs:
         shell: pwsh
         run: .\tools\Test-PublicRelease.ps1
 
-      - name: 构建 Core
-        shell: pwsh
-        run: dotnet build .\SonarGameBar.Core\SonarGameBar.Core.csproj --configuration Debug
-
-      - name: 构建 Bridge
-        shell: pwsh
-        run: dotnet build .\SonarGameBar.Bridge\SonarGameBar.Bridge.csproj --configuration Debug
-
       - name: 运行 Core 测试
         shell: pwsh
         run: dotnet run --project .\SonarGameBar.Core.Tests\SonarGameBar.Core.Tests.csproj --configuration Debug
+
+      - name: 构建并签名 Widget 调试包
+        shell: pwsh
+        run: .\tools\Build-Debug.ps1 -OutputDirectory .\artifacts\packages\Debug
+
+      - name: 上传 Widget 调试包
+        uses: actions/upload-artifact@v7
+        with:
+          name: SonarGameBar-debug-x64-${{ github.sha }}
+          path: artifacts/packages/Debug/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 构建并签名 Widget Release 包
+        shell: pwsh
+        run: .\tools\Build-Release.ps1 -OutputDirectory .\artifacts\packages\Release
+
+      - name: 上传 Widget Release 包
+        uses: actions/upload-artifact@v7
+        with:
+          name: SonarGameBar-release-x64-${{ github.sha }}
+          path: artifacts/packages/Release/
+          if-no-files-found: error
+          retention-days: 14

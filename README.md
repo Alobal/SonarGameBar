@@ -39,6 +39,17 @@ Start-Process 'ms-gamebar://launch/activate/SonarGameBar.Widget_dybzwrprnmrze_Ap
 .\tools\Build-Debug.ps1
 ```
 
+构建经过优化并使用测试证书签名的 Release 包：
+
+```powershell
+.\tools\Build-Release.ps1
+```
+
+推送提交或创建 Pull Request 后，GitHub Actions 会自动执行发布审计、测试和
+完整 Widget 构建。构建成功后，可从对应 Actions 运行页面下载
+`SonarGameBar-debug-x64-<提交哈希>` 和 `SonarGameBar-release-x64-<提交哈希>`。
+两套构建产物都包含已签名的 MSIX、依赖包和测试证书。
+
 安装调试包需要一次管理员 UAC，用于信任本地测试发布者证书：
 
 ```powershell

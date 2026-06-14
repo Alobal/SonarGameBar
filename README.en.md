@@ -37,6 +37,17 @@ Build and sign a local debug package:
 .\tools\Build-Debug.ps1
 ```
 
+Build an optimized Release package signed with the test certificate:
+
+```powershell
+.\tools\Build-Release.ps1
+```
+
+Every push and pull request runs the release audit, tests, and complete Widget build in
+GitHub Actions. After a successful run, download `SonarGameBar-debug-x64-<commit-sha>`
+and `SonarGameBar-release-x64-<commit-sha>` from the run's artifact list. Both
+artifacts contain the signed MSIX, dependency packages, and test certificate.
+
 Installing the debug package requires one administrator UAC prompt to trust the local test publisher certificate:
 
 ```powershell
